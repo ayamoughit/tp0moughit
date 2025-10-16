@@ -8,8 +8,10 @@ import jakarta.inject.Named;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * Backing bean pour la page JSF index.xhtml.
@@ -114,23 +116,37 @@ public class Bb implements Serializable {
      */
     public String envoyer() {
         if (question == null || question.isBlank()) {
-            // Erreur ! Le formulaire va être réaffiché en réponse à la requête POST, avec un message d'erreur.
             FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR,
                     "Texte question vide", "Il manque le texte de la question");
             facesContext.addMessage(null, message);
             return null;
         }
-        // Entourer la réponse avec "||".
-        this.reponse = "||";
-        // Si la conversation n'a pas encore commencé, ajouter le rôle système au début de la réponse
-        if (this.conversation.isEmpty()) {
-            // Ajouter le rôle système au début de la réponse
-            this.reponse += roleSysteme.toUpperCase(Locale.FRENCH) + "\n";
-            // Invalide le bouton pour changer le rôle système
-            this.roleSystemeChangeable = false;
+
+        String trimmedQuestion = question.trim();
+        if (trimmedQuestion.toLowerCase().startsWith("tri ")) {
+            // Special personal task: sorting numbers
+            try {
+                String[] numbersStr = trimmedQuestion.substring(4).split("\\s+");
+                List<Integer> numbers = Arrays.stream(numbersStr)
+                                              .map(Integer::parseInt)
+                                              .sorted()
+                                              .collect(Collectors.toList());
+                this.reponse = "Moughit's special sort result: " + numbers.stream()
+                                                                           .map(String::valueOf)
+                                                                           .collect(Collectors.joining(" "));
+            } catch (NumberFormatException e) {
+                this.reponse = "Error: Please provide a space-separated list of numbers after 'tri'.";
+            }
+        } else {
+            // Personal message
+            this.reponse = "Moughit's server reverses your question: ";
+            if (this.conversation.isEmpty()) {
+                this.reponse += roleSysteme.toUpperCase(Locale.FRENCH) + "\n";
+                this.roleSystemeChangeable = false;
+            }
+            this.reponse += new StringBuilder(question).reverse().toString();
         }
-        this.reponse += question.toLowerCase(Locale.FRENCH) + "||";
-        // La conversation contient l'historique des questions-réponses depuis le début.
+
         afficherConversation();
         return null;
     }

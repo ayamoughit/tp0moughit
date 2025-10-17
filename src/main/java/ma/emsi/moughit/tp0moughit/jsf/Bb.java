@@ -114,42 +114,50 @@ public class Bb implements Serializable {
      *
      * @return null pour rester sur la même page.
      */
-    public String envoyer() {
-        if (question == null || question.isBlank()) {
-            FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR,
-                    "Texte question vide", "Il manque le texte de la question");
-            facesContext.addMessage(null, message);
-            return null;
-        }
-
-        String trimmedQuestion = question.trim();
-        if (trimmedQuestion.toLowerCase().startsWith("tri ")) {
-            // Special personal task: sorting numbers
-            try {
-                String[] numbersStr = trimmedQuestion.substring(4).split("\\s+");
-                List<Integer> numbers = Arrays.stream(numbersStr)
-                                              .map(Integer::parseInt)
-                                              .sorted()
-                                              .collect(Collectors.toList());
-                this.reponse = "Moughit's special sort result: " + numbers.stream()
-                                                                           .map(String::valueOf)
-                                                                           .collect(Collectors.joining(" "));
-            } catch (NumberFormatException e) {
-                this.reponse = "Error: Please provide a space-separated list of numbers after 'tri'.";
-            }
-        } else {
-            // Personal message
-            this.reponse = "Moughit's server reverses your question: ";
-            if (this.conversation.isEmpty()) {
-                this.reponse += roleSysteme.toUpperCase(Locale.FRENCH) + "\n";
-                this.roleSystemeChangeable = false;
-            }
-            this.reponse += new StringBuilder(question).reverse().toString();
-        }
-
-        afficherConversation();
+    public String envoyer() {    if (question == null || question.isBlank()) {        FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR,                "Texte question vide", "Il manque le texte de la question");
+        facesContext.addMessage(null, message);
         return null;
     }
+
+    String trimmedQuestion = question.trim();
+
+    // On essaie de détecter si ce sont des nombres
+    String[] tokens = trimmedQuestion.split("\\s+");
+    boolean allNumbers = true;
+    for (String t : tokens) {
+        try {
+            Integer.parseInt(t);
+        } catch (NumberFormatException e) {
+            allNumbers = false;
+            break;
+        }
+    }
+
+    if (allNumbers) {
+        // Tri numérique
+        List<Integer> numbers = Arrays.stream(tokens)
+                                      .map(Integer::parseInt)
+                                      .sorted()
+                                      .collect(Collectors.toList());
+        this.reponse = "Moughit's sorted numbers: " + numbers.stream()
+                                                              .map(String::valueOf)
+                                                              .collect(Collectors.joining(" "));
+    } else {
+        // Tri alphabétique par mots
+        Arrays.sort(tokens, String.CASE_INSENSITIVE_ORDER); // Tri sans tenir compte des majuscules
+        this.reponse = "Moughit's sorted words: " + String.join(" ", tokens);
+    }
+
+    // Mise à jour de la conversation
+    afficherConversation();
+
+    // Une fois qu’on a envoyé la question, on bloque le rôle système si c’est le premier message
+    if (this.conversation.toString().split("== User:").length <= 2) { // Correction de la condition
+        this.roleSystemeChangeable = false;
+    }
+
+    return null; // reste sur la même page
+}
 
     /**
      * Pour un nouveau chat.
